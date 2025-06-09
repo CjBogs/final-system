@@ -13,14 +13,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $block       = trim($_POST['block'] ?? '');
     $email       = $_SESSION['email'] ?? '';
 
-    $uploadDir = '../uploads/requests/';
-    $filePath = '';
-
-    if (!is_dir($uploadDir)) {
-        mkdir($uploadDir, 0775, true);
+    $uploadDir = realpath(__DIR__ . '/../uploads/requests');
+    if (!$uploadDir) {
+        $uploadDir = __DIR__ . '/../uploads/requests';
+        if (!is_dir($uploadDir) && !mkdir($uploadDir, 0775, true)) {
+            die("Failed to create upload directory.");
+        }
     }
 
-    // Only allow PDF, DOC, and DOCX files
+    $filePath = '';
+
     if (isset($_FILES['request_file']) && $_FILES['request_file']['error'] === UPLOAD_ERR_OK) {
         $fileTmpPath = $_FILES['request_file']['tmp_name'];
         $fileName    = basename($_FILES['request_file']['name']);
@@ -32,13 +34,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $uniqueName = uniqid('request_', true) . '.' . $fileExt;
-        $filePath = $uploadDir . $uniqueName;
+        $filePath = $uploadDir . '/' . $uniqueName;
 
         if (!move_uploaded_file($fileTmpPath, $filePath)) {
             die("Failed to move uploaded file.");
         }
     } else {
-        die("File upload error.");
+        die("File upload error: " . $_FILES['request_file']['error']);
     }
 
     if ($title && $description && $event_date && $email && $filePath) {
@@ -58,7 +60,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->close();
 
         $_SESSION['flash_success'] = "Your event request has been sent and is awaiting admin approval.";
-
         header("Location: user-dashboard.php#requestEvent");
         exit();
     } else {
